@@ -2,7 +2,7 @@
 import logging
 import threading
 
-from flask import Flask, Response, jsonify, render_template_string
+from flask import Flask, Response, jsonify, render_template_string, send_from_directory
 from werkzeug.serving import make_server
 
 import config
@@ -10,6 +10,8 @@ from display import INDEX_HTML
 from state import GlobalState
 
 log = logging.getLogger(__name__)
+
+AUDIO_FILES = {"slouch.mp3", "lean.mp3", "head_down.mp3"}
 
 
 def create_app(state: GlobalState) -> Flask:
@@ -28,6 +30,14 @@ def create_app(state: GlobalState) -> Flask:
     @app.get("/")
     def index():
         return render_template_string(INDEX_HTML)
+
+    @app.get("/audio/<filename>")
+    def audio_file(filename: str):
+        if filename not in AUDIO_FILES:
+            return {"error": "Audio file not found"}, 404
+        return send_from_directory(
+            str(config.BASE_DIR), filename, mimetype="audio/mpeg", conditional=True
+        )
 
     @app.get("/video_feed")
     def video_feed():

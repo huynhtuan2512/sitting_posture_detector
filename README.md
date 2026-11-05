@@ -1,7 +1,7 @@
 # Posture Monitor (Raspberry Pi + YOLOv8n-pose ONNX)
 
 Giám sát tư thế ngồi theo thời gian thực: Pi Camera (OV5647/CSI) → YOLOv8n-pose (ONNX Runtime) →
-tính góc Tai-Vai-Hông → overlay + LED xanh/đỏ + web stream MJPEG.
+tính góc Tai-Vai-Hông → overlay, LED xanh/đỏ, buzzer, LCD 1602 I2C và web stream MJPEG.
 
 ## 1. Phần cứng
 
@@ -9,10 +9,15 @@ tính góc Tai-Vai-Hông → overlay + LED xanh/đỏ + web stream MJPEG.
 |---|---|
 | LED xanh (anode, qua điện trở 220–330 Ω) | GPIO17 (chân vật lý 11) |
 | LED đỏ (anode, qua điện trở 220–330 Ω) | GPIO27 (chân vật lý 13) |
+| Buzzer chủ động | GPIO22 (chân vật lý 15), GND |
+| LCD 1602 I2C (SDA/SCL) | GPIO2 (chân vật lý 3) / GPIO3 (chân vật lý 5) |
+| LCD 1602 I2C (nguồn) | 5V và GND; dùng bộ chuyển mức I2C nếu module kéo SDA/SCL lên 5V |
 | Catode cả hai LED | GND (chân vật lý 9 hoặc 14) |
 | Camera OV5647 | Cổng CSI (cáp ribbon, mặt đồng tiếp xúc đúng chiều, tắt nguồn khi cắm) |
 
-Đổi chân trong `config.py` (`LED_GREEN_PIN`, `LED_RED_PIN`, đánh số BCM).
+Đổi chân trong `config.py` (`LED_GREEN_PIN`, `LED_RED_PIN`, `BUZZER_PIN`, đánh số BCM).
+Địa chỉ LCD mặc định là `0x27`; nếu module dùng `0x3F`, đổi `LCD_I2C_ADDRESS`.
+Buzzer được giả định là loại chủ động 3.3V tương thích GPIO; không cấp tải dòng lớn trực tiếp từ GPIO.
 
 **Đặt camera:** nhìn ngang từ bên cạnh (~90°) ở độ cao vai/đầu, thấy rõ một bên tai–vai–hông.
 Nhìn chính diện chỉ đo được độ nghiêng vai, không đo được gù/cúi.
@@ -29,6 +34,8 @@ python3 -m venv --system-site-packages .venv   # bắt buộc để thấy picam
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+`RPLCD` được cài cùng requirements để điều khiển LCD 1602 I2C.
 
 ## 3. Chuẩn bị model ONNX
 
@@ -55,7 +62,17 @@ Mở `http://<ip-của-pi>:5000`. Dừng bằng `Ctrl+C`.
 | `/` | Giao diện web |
 | `/video_feed` | Luồng MJPEG |
 | `/api/status` | JSON: trạng thái, các góc, FPS, LED |
+| `/audio/<filename>` | File MP3 lời nhắc tư thế |
 | `/healthz` | Kiểm tra sống |
+
+### Lời nhắc bằng loa máy tính
+
+Ba file `slouch.mp3`, `lean.mp3`, `head_down.mp3` được phục vụ trực tiếp từ thư mục
+`sitting_posture_detector` qua endpoint `/audio/`; không cần chép vào `static/audio/`.
+Mở trang web trên máy tính đang có loa, bấm **Bật âm thanh cảnh báo** (cần thao tác
+này để trình duyệt cho phép phát âm thanh).
+Mỗi trạng thái sai phải liên tục 5 giây mới phát lời nhắc tương ứng; nếu còn sai, nhắc lại sau mỗi 10 giây.
+Khi tư thế trở lại bình thường hoặc chuyển sang lỗi khác, bộ đếm được đặt lại.
 
 Luồng MJPEG được lấy từ frame camera mới nhất và chạy độc lập với nhận diện tư thế; vì vậy
 độ mượt của hình không còn bị giới hạn bởi tốc độ ONNX. Overlay được cập nhật theo lần nhận
@@ -69,8 +86,10 @@ diện mới nhất. Chất lượng JPEG mặc định là 70 trong `config.py`
 | Cúi đầu (HEAD_DOWN) | Góc vai→tai lệch phương thẳng đứng > 30° |
 | Nghiêng (LEAN) | Góc hông→vai lệch phương thẳng > 15°, hoặc vai lệch ngang > 10° (nhìn chính diện) |
 
-LED đỏ chỉ sáng khi sai tư thế liên tục ≥ `BAD_POSTURE_HOLD_SEC` (3 s); trở lại xanh sau
-`GOOD_POSTURE_HOLD_SEC` (1 s) đúng tư thế. Không thấy người: cả hai LED tắt.
+LED xanh sáng khi tư thế đúng; LED đỏ sáng ngay khi gù, cúi đầu hoặc nghiêng. LCD hiển thị
+trạng thái; buzzer chủ động kêu nhịp (0,2 s mỗi giây) trong cả ba trường hợp sai. Trang web
+có thể phát lời nhắc qua loa máy tính khi mở trang và đã bật âm thanh.
+Không thấy người hoặc không đủ keypoint: hai LED tắt, buzzer tắt.
 **Các ngưỡng là điểm khởi đầu** — hãy ngồi tư thế chuẩn, xem số góc trên web rồi chỉnh theo bạn.
 
 ## 6. Chạy tự động khi khởi động (systemd)

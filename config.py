@@ -39,13 +39,14 @@ NECK_FORWARD_MAX_DEG = 30.0      # Góc (vai->tai) lệch phương thẳng đứ
 TRUNK_LEAN_MAX_DEG = 15.0        # Góc (hông->vai) lệch phương thẳng đứng > ngưỡng -> nghiêng
 SHOULDER_TILT_MAX_DEG = 10.0     # Chỉ dùng khi nhìn chính diện: vai lệch ngang > ngưỡng -> nghiêng
 
-# ----------------------------- Cảnh báo ------------------------------
-BAD_POSTURE_HOLD_SEC = 3.0       # Sai tư thế liên tục bao lâu mới báo đỏ
-GOOD_POSTURE_HOLD_SEC = 1.0      # Đúng tư thế liên tục bao lâu mới trở về xanh
-
 # ----------------------------- GPIO (BCM) ----------------------------
 LED_GREEN_PIN = 17               # Chân vật lý 11
 LED_RED_PIN = 27                 # Chân vật lý 13
+BUZZER_PIN = 22                  # Chân vật lý 15, buzzer chủ động
+LCD_I2C_ADDRESS = 0x27           # Thường là 0x27 hoặc 0x3F
+LCD_I2C_BUS = 1
+BUZZER_BEEP_INTERVAL_SEC = 1.0
+BUZZER_BEEP_DURATION_SEC = 0.2
 
 # ----------------------------- Web -----------------------------------
 WEB_HOST = "0.0.0.0"
